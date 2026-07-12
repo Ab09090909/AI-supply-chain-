@@ -1,137 +1,203 @@
 """
-Producer-specific database access
-Self-contained - no external imports except standard library
+Producer Database Access Layer
+Uses the shared database connection
 """
-import sqlite3
 import json
 from typing import List, Dict, Optional
 from datetime import datetime
 
+# Import shared database connection
+try:
+    from database.connection import db
+except ImportError:
+    # Fallback for standalone testing
+    import sqlite3
+    class MockDB:
+        def execute_query(self, query, params=None, fetch=False):
+            conn = sqlite3.connect("data/supply_chain.db")
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            if fetch:
+                result = [dict(row) for row in cursor.fetchall()]
+            else:
+                result = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            return result
+    db = MockDB()
+
 class ProducerDB:
-    """Producer-specific database helper"""
+    """Producer-specific database operations"""
     
     def __init__(self):
-        self.db_path = "../data/supply_chain.db"
-        self.conn = None
-        self._connect()
+        self.producer_id = 1  # Current producer ID (would come from session)
     
-    def _connect(self):
-        """Establish database connection"""
-        try:
-            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            self.conn.row_factory = sqlite3.Row
-        except Exception as e:
-            print(f"DB connection error: {e}")
-            self.conn = None
+    def get_inventory(self) -> List[Dict]:
+        """Get all inventory items for current producer"""
+        query = """
+            SELECT id, sku, name, description, category, price, stock, unit,
+                   reorder_point, reorder_quantity, is_active, created_at
+            FROM products 
+            WHERE producer_id = ? AND is_active = 1
+            ORDER BY category, name
+        """
+        results = db.execute_query(query, (self.producer_id,), fetch=True)
+        return results if results else []
     
-    def get_inventory(self, producer_id: int = 1) -> List[Dict]:
-        """Get all inventory items for producer"""
-        if not self.conn:
-            return self._get_mock_inventory()
-        
-        try:
-            cursor = self.conn.execute(
-                "SELECT * FROM products WHERE producer_id = ?",
-                (producer_id,)
-            )
-            return [dict(row) for row in cursor.fetchall()]
-        except Exception:
-            return self._get_mock_inventory()
+    def get_inventory_by_category(self, category: str) -> List[Dict]:
+        """Get inventory filtered by category"""
+        query = """
+            SELECT * FROM products 
+            WHERE producer_id = ? AND category = ? AND is_active = 1
+            ORDER BY name
+        """
+        return db.execute_query(query, (self.producer_id, category), fetch=True) or []
     
-    def get_orders(self, producer_id: int = 1, status: str = None) -> List[Dict]:
-        """Get orders for producer, optionally filtered by status"""
-        if not self.conn:
-            return self._get_mock_orders()
-        
-        try:
-            query = "SELECT * FROM orders WHERE user_id = ? AND role = 'producer'"
-            params = [producer_id]
-            
-            if status:
-                query += " AND status = ?"
-                params.append(status)
-            
-            query += " ORDER BY created_at DESC"
-            
-            cursor = self.conn.execute(query, params)
-            orders = []
-            for row in cursor.fetchall():
-                order = dict(row)
-                # Parse items JSON
-                try:
-                    order['items'] = json.loads(order['items'])
-                except:
-                    order['items'] = []
-                orders.append(order)
-            return orders
-        except Exception:
-            return self._get_mock_orders()
+    def get_low_stock_items(self) -> List[Dict]:
+        """Get items below reorder point"""
+        query = """
+            SELECT * FROM products 
+            WHERE producer_id = ? 
+            AND stock <= reorder_point 
+            AND is_active = 1
+            ORDER BY stock ASC
+        """
+        return db.execute_query(query, (self.producer_id,), fetch=True) or []
     
-    def get_incoming_orders(self, producer_id: int = 1) -> List[Dict]:
-        """Get pending/awaiting orders"""
-        return self.get_orders(producer_id, 'pending') + self.get_orders(producer_id, 'awaiting')
+    def get_product_by_sku(self, sku: str) -> Optional[Dict]:
+        """Get single product by SKU"""
+        query = "SELECT * FROM products WHERE sku = ? AND producer_id = ?"
+        results = db.execute_query(query, (sku, self.producer_id), fetch=True)
+        return results[0] if results else None
     
-    def create_order(self, order_data: Dict) -> bool:
-        """Create new order"""
-        if not self.conn:
-            return False
-        
-        try:
-            cursor = self.conn.execute(
-                """INSERT INTO orders (order_number, user_id, role, items, total, status)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (
-                    order_data['order_number'],
-                    order_data['user_id'],
-                    order_data['role'],
-                    json.dumps(order_data['items']),
-                    order_data['total'],
-                    order_data['status']
-                )
-            )
-            self.conn.commit()
-            return cursor.lastrowid > 0
-        except Exception:
-            return False
+    def add_product(self, product_data: Dict) -> bool:
+        """Add new product"""
+        query = """
+            INSERT INTO products 
+            (sku, name, description, category, price, stock, unit, 
+             reorder_point, reorder_quantity, producer_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            product_data['sku'],
+            product_data['name'],
+            product_data.get('description', ''),
+            product_data['category'],
+            product_data['price'],
+            product_data.get('stock', 0),
+            product_data['unit'],
+            product_data.get('reorder_point', 10),
+            product_data.get('reorder_quantity', 50),
+            self.producer_id
+        )
+        result = db.execute_query(query, params)
+        return result is not None
     
-    def update_inventory(self, sku: str, stock: int) -> bool:
+    def update_stock(self, sku: str, new_stock: int) -> bool:
         """Update product stock"""
-        if not self.conn:
-            return False
+        query = "UPDATE products SET stock = ? WHERE sku = ? AND producer_id = ?"
+        result = db.execute_query(query, (new_stock, sku, self.producer_id))
+        return result is not None
+    
+    def get_orders(self, status: str = None) -> List[Dict]:
+        """Get orders for current producer"""
+        if status:
+            query = """
+                SELECT o.*, u.name as buyer_name, u.email as buyer_email
+                FROM orders o
+                JOIN users u ON o.buyer_id = u.id
+                WHERE o.seller_id = ? AND o.seller_role = 'producer' AND o.status = ?
+                ORDER BY o.created_at DESC
+            """
+            params = (self.producer_id, status)
+        else:
+            query = """
+                SELECT o.*, u.name as buyer_name, u.email as buyer_email
+                FROM orders o
+                JOIN users u ON o.buyer_id = u.id
+                WHERE o.seller_id = ? AND o.seller_role = 'producer'
+                ORDER BY o.created_at DESC
+            """
+            params = (self.producer_id,)
         
-        try:
-            cursor = self.conn.execute(
-                "UPDATE products SET stock = ? WHERE sku = ?",
-                (stock, sku)
-            )
-            self.conn.commit()
-            return cursor.rowcount > 0
-        except Exception:
-            return False
+        results = db.execute_query(query, params, fetch=True)
+        
+        # Parse JSON fields
+        for order in results or []:
+            if order.get('items'):
+                order['items'] = json.loads(order['items'])
+            if order.get('shipping_address'):
+                order['shipping_address'] = json.loads(order['shipping_address'])
+        
+        return results or []
     
-    def _get_mock_inventory(self) -> List[Dict]:
-        """Fallback mock inventory"""
-        return [
-            {"sku": "AGR-001", "name": "Organic Wheat", "category": "Grains", "stock": 450, "min": 100, "price": 4.20},
-            {"sku": "AGR-002", "name": "Fresh Dairy Milk", "category": "Dairy", "stock": 35, "min": 50, "price": 3.50},
-            {"sku": "AGR-003", "name": "Premium Avocados", "category": "Fruits", "stock": 12, "min": 40, "price": 12.00},
-            {"sku": "AGR-004", "name": "Free Range Eggs", "category": "Dairy", "stock": 200, "min": 80, "price": 5.50},
-            {"sku": "AGR-005", "name": "Organic Rice", "category": "Grains", "stock": 45, "min": 60, "price": 3.80},
-            {"sku": "AGR-006", "name": "Organic Carrots", "category": "Vegetables", "stock": 0, "min": 30, "price": 2.90},
+    def get_pending_orders(self) -> List[Dict]:
+        """Get pending orders requiring action"""
+        return self.get_orders('pending') + self.get_orders('awaiting')
+    
+    def create_order(self, order_data: Dict) -> Optional[int]:
+        """Create new order"""
+        query = """
+            INSERT INTO orders 
+            (order_number, buyer_id, buyer_role, seller_id, seller_role,
+             items, subtotal, tax, shipping, total, status, payment_status,
+             shipping_address, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            order_data['order_number'],
+            order_data['buyer_id'],
+            order_data['buyer_role'],
+            self.producer_id,
+            'producer',
+            json.dumps(order_data['items']),
+            order_data['subtotal'],
+            order_data.get('tax', 0),
+            order_data.get('shipping', 0),
+            order_data['total'],
+            order_data.get('status', 'pending'),
+            order_data.get('payment_status', 'pending'),
+            json.dumps(order_data.get('shipping_address', {})),
+            order_data.get('notes', '')
+        )
+        return db.execute_query(query, params)
+    
+    def get_merchant_matches(self, category: str = None, radius: int = 100) -> List[Dict]:
+        """Get AI-matched merchants (mock implementation)"""
+        # In production, this would call the matching ML model
+        mock_matches = [
+            {"name": "FoodCo Distributors", "match_score": 95, "distance": 15, "rating": 4.8, "capacity": "1000 units/week"},
+            {"name": "FreshChain Inc", "match_score": 87, "distance": 25, "rating": 4.6, "capacity": "800 units/week"},
+            {"name": "OrganicMarket", "match_score": 82, "distance": 30, "rating": 4.5, "capacity": "600 units/week"},
         ]
+        return mock_matches
     
-    def _get_mock_orders(self) -> List[Dict]:
-        """Fallback mock orders"""
-        return [
-            {"id": "#PO-001", "merchant": "Metro Retail Inc", "product": "Organic Wheat", "amount": 2400, "status": "Delivered", "date": "2024-01-15"},
-            {"id": "#PO-002", "merchant": "Fresh Market Co", "product": "Fresh Dairy", "amount": 1850, "status": "In Transit", "date": "2024-01-16"},
-            {"id": "#ORD-2024-0891", "merchant": "Metro Retail Inc", "product": "Organic Wheat (50 tons)", "amount": 12500, "status": "pending", "date": "2024-01-20"},
-        ]
+    def get_price_forecast(self, product_id: int, days: int = 30) -> Dict:
+        """Get AI price forecast"""
+        # In production, this would call the price prediction model
+        return {
+            "product_id": product_id,
+            "forecast_days": days,
+            "current_price": 4.20,
+            "predicted_prices": [4.20 + (i * 0.02) for i in range(days)],
+            "confidence": 0.85,
+            "recommendation": "Hold"
+        }
     
-    def close(self):
-        """Close database connection"""
-        if self.conn:
-            self.conn.close()
+    def get_demand_forecast(self, category: str, days: int = 7) -> Dict:
+        """Get AI demand forecast"""
+        return {
+            "category": category,
+            "forecast_days": days,
+            "current_demand": 65,
+            "predicted_demand": [65 + (i * 2) for i in range(days)],
+            "confidence": 0.82,
+            "alert": None
+        }
 
 # Global instance
-db = ProducerDB()
+producer_db = ProducerDB()
