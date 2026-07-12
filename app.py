@@ -3,7 +3,7 @@ AI Supply Chain Platform - Login & Producer Portal
 """
 import streamlit as st
 
-# Page config
+# Page config - MUST be first
 st.set_page_config(
     page_title="AI Supply Chain Platform",
     page_icon="🔗",
@@ -11,16 +11,38 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Force sidebar open
+# FORCE SIDEBAR OPEN - This CSS ensures sidebar is always visible
 st.markdown("""
 <style>
+/* Force sidebar open */
+section[data-testid="stSidebar"] {
+    display: block !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    z-index: 999 !important;
+}
+
+/* Push main content to the right */
+.main > div {
+    margin-left: 280px !important;
+    padding-left: 2rem !important;
+}
+
+/* Hide the collapse button */
+button[kind="header"] {
+    display: none !important;
+}
+
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
-section[data-testid="stSidebar"] {
-    width: 260px !important;
-    min-width: 260px !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -29,55 +51,76 @@ def login_page():
     st.title("🔗 AI Supply Chain Platform")
     st.markdown("### Multi-Enterprise Supply Chain Intelligence")
     
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("---")
+    # Create a container for centering
+    with st.container():
+        col1, col2, col3 = st.columns([1, 2, 1])
         
-        # Role selection
-        st.subheader("Select Portal")
-        role = st.radio(
-            "Choose your role",
-            ["Producer", "Merchant", "Customer", "Admin"],
-            format_func=lambda x: {
-                "Producer": "🌾 Producer Portal",
-                "Merchant": "🛒 Merchant Portal",
-                "Customer": "🛍️ Customer Store",
-                "Admin": "⚙️ Admin Console"
-            }[x],
-            label_visibility="collapsed"
-        )
-        
-        st.markdown("---")
-        
-        # Login form
-        with st.form("login_form"):
-            st.text_input("Email", value="producer@demo.com", placeholder="Enter your email")
-            st.text_input("Password", value="password", type="password", placeholder="Enter your password")
+        with col2:
+            st.markdown("---")
             
-            col_a, col_b = st.columns(2)
-            with col_a:
-                submit = st.form_submit_button("Login", use_container_width=True, type="primary")
-            with col_b:
-                demo = st.form_submit_button("Demo Mode", use_container_width=True)
+            # Role selection - FORCE PRODUCER FOR TESTING
+            st.subheader("Select Portal")
+            role = st.radio(
+                "Choose your role",
+                ["Producer", "Merchant", "Customer", "Admin"],
+                format_func=lambda x: {
+                    "Producer": "🌾 Producer Portal",
+                    "Merchant": "🛒 Merchant Portal",
+                    "Customer": "🛍️ Customer Store",
+                    "Admin": "⚙️ Admin Console"
+                }[x],
+                label_visibility="collapsed",
+                index=0  # DEFAULT TO PRODUCER (first option)
+            )
             
-            if submit or demo:
-                st.session_state.logged_in = True
-                st.session_state.role = role.lower()
-                st.rerun()
-        
-        st.markdown("---")
-        st.caption("🔒 Secure login | Demo mode available")
+            st.markdown("---")
+            
+            # Login form
+            with st.form("login_form"):
+                st.text_input("Email", value="producer@demo.com", placeholder="Enter your email")
+                st.text_input("Password", value="password", type="password", placeholder="Enter your password")
+                
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    submit = st.form_submit_button("Login", use_container_width=True, type="primary")
+                with col_b:
+                    demo = st.form_submit_button("Demo Mode", use_container_width=True)
+                
+                if submit or demo:
+                    st.session_state.logged_in = True
+                    st.session_state.role = role.lower()
+                    st.rerun()
+            
+            st.markdown("---")
+            st.caption("🔒 Secure login | Demo mode available")
 
 def producer_portal():
-    """Producer portal with working sidebar"""
+    """Producer portal with WORKING sidebar"""
     
     # ============ SIDEBAR ============
     with st.sidebar:
-        # Profile
-        st.markdown("<h1 style='text-align: center; font-size: 3rem;'>👨‍🌾</h1>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align: center;'>Green Valley Farms</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #666;'>Producer Portal</p>", unsafe_allow_html=True)
+        # Profile Section
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem 0;">
+            <div style="
+                width: 80px; 
+                height: 80px; 
+                background: linear-gradient(135deg, #667eea, #764ba2); 
+                border-radius: 50%; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                color: white; 
+                font-weight: bold; 
+                font-size: 32px;
+                margin: 0 auto;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            ">👨‍🌾</div>
+            <h2 style='margin: 1rem 0 0 0; font-size: 1.2rem;'>Green Valley Farms</h2>
+            <p style='color: #666; font-size: 0.9rem; margin: 0;'>Producer Portal</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.markdown("---")
         
         # Navigation
@@ -91,7 +134,7 @@ def producer_portal():
         
         st.markdown("---")
         
-        # Quick stats
+        # Quick Stats
         st.subheader("Quick Stats")
         st.metric("Active Orders", "24", "+3 today")
         st.metric("Inventory Items", "6")
@@ -106,7 +149,7 @@ def producer_portal():
         st.markdown("---")
         
         # Logout
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
             st.session_state.logged_in = False
             st.session_state.role = None
             st.rerun()
@@ -140,33 +183,16 @@ def show_dashboard():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric(
-            label="Active Orders",
-            value="24",
-            delta="+3 today"
-        )
+        st.metric(label="Active Orders", value="24", delta="+3 today")
     
     with col2:
-        st.metric(
-            label="Inventory Turn",
-            value="4.2x",
-            delta="+0.3"
-        )
+        st.metric(label="Inventory Turn", value="4.2x", delta="+0.3")
     
     with col3:
-        st.metric(
-            label="Avg Price",
-            value="$4.85",
-            delta="+2.1%"
-        )
+        st.metric(label="Avg Price", value="$4.85", delta="+2.1%")
     
     with col4:
-        st.metric(
-            label="Risk Score",
-            value="12%",
-            delta="-3%",
-            delta_color="inverse"
-        )
+        st.metric(label="Risk Score", value="12%", delta="-3%", delta_color="inverse")
     
     st.markdown("---")
     
@@ -453,12 +479,13 @@ def main():
     if not st.session_state.logged_in:
         login_page()
     else:
-        # Show only producer portal for now
+        # Show only producer portal for testing
         if st.session_state.role == "producer":
             producer_portal()
         else:
-            st.warning(f"Only Producer portal is ready. You selected: {st.session_state.role}")
-            if st.button("Switch to Producer"):
+            # If not producer, show message and let them switch
+            st.warning(f"Only Producer portal is ready now. You selected: {st.session_state.role}")
+            if st.button("Switch to Producer Portal"):
                 st.session_state.role = "producer"
                 st.rerun()
 
