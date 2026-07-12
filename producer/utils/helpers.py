@@ -28,12 +28,10 @@ def get_time_ago(date_str: str) -> str:
     """Get human-readable time ago"""
     if not date_str:
         return "Unknown"
-    
     try:
         dt = datetime.fromisoformat(date_str)
         now = datetime.now()
         diff = now - dt
-        
         if diff.days > 0:
             return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
         elif diff.seconds > 3600:
@@ -47,7 +45,7 @@ def get_time_ago(date_str: str) -> str:
     except:
         return date_str
 
-def get_stock_status(stock: int, min_stock: int) -> tuple[str, str]:
+def get_stock_status(stock: int, min_stock: int) -> tuple:
     """Get stock status and emoji"""
     if stock == 0:
         return "Critical", "🔴"
@@ -70,12 +68,15 @@ def get_status_badge(status: str) -> str:
     }
     return badges.get(status.lower(), f'<span class="badge">{status}</span>')
 
-def generate_mock_time_series(days: int = 30, base: float = 100, variance: float = 20):
+# CORRECTED FUNCTION NAME - matches the import in dashboard/view.py
+def generate_mock_chart_data(days: int = 30, base: float = 100, variance: float = 20):
     """Generate mock time series data for charts"""
-    from datetime import datetime, timedelta
     dates = [datetime.now() - timedelta(days=x) for x in range(days, 0, -1)]
     values = [base + (x * 0.5) + random.uniform(-variance, variance) for x in range(days)]
     return dates, values
+
+# Keep the old name as alias for backward compatibility
+generate_mock_time_series = generate_mock_chart_data
 
 def validate_email(email: str) -> bool:
     """Basic email validation"""
