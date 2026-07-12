@@ -1,6 +1,5 @@
 """
 Producer AI Insights
-Independent module
 """
 import streamlit as st
 import pandas as pd
