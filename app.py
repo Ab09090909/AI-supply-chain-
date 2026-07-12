@@ -12,8 +12,33 @@ st.set_page_config(
     page_title="AI Supply Chain Platform",
     page_icon="🔗",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded"  # FORCE SIDEBAR OPEN
 )
+
+# Force sidebar open with JavaScript (fixes mobile/Streamlit Cloud issues)
+st.markdown("""
+<script>
+// Force sidebar to open on load
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar && sidebar.style.display === 'none') {
+            sidebar.style.display = 'block';
+            sidebar.style.width = '260px';
+        }
+    }, 100);
+});
+
+// Keep sidebar open
+window.addEventListener('resize', function() {
+    const sidebar = document.querySelector('[data-testid="stSidebar"]');
+    if (sidebar) {
+        sidebar.style.display = 'block';
+        sidebar.style.width = '260px';
+    }
+});
+</script>
+""", unsafe_allow_html=True)
 
 # Hide default Streamlit elements
 st.markdown("""
@@ -21,13 +46,18 @@ st.markdown("""
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
+section[data-testid="stSidebar"] {
+    width: 260px !important;
+    min-width: 260px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
 def main():
-    # NO SIDEBAR HERE - each role handles its own sidebar
+    # Role selector in main area (for mobile friendliness)
+    st.markdown("### 🔗 Select Portal")
     role = st.radio(
-        "Select Portal",
+        "Select your access level",
         ["Producer", "Merchant", "Customer", "Admin"],
         format_func=lambda x: {
             "Producer": "🌾 Producer Portal",
@@ -35,7 +65,7 @@ def main():
             "Customer": "🛍️ Customer Store",
             "Admin": "⚙️ Admin Console"
         }[x],
-        label_visibility="visible",
+        label_visibility="collapsed",
         horizontal=True
     )
     
