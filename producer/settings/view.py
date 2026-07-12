@@ -66,7 +66,3 @@ def render():
         st.selectbox("Theme", ["Light", "Dark", "System"])
         st.selectbox("Font Size", ["Small", "Medium", "Large"])
         st.checkbox("Compact Mode", value=False)
-
-### **File 26: producer/ai_assistant/__init__.py**
-```python
-# Producer AI assistant package
