@@ -3,7 +3,6 @@ Producer Portal - Main Entry Point
 """
 import streamlit as st
 
-# Simple constants - no complex imports at top level
 PRODUCER_NAME = "Green Valley Farms"
 TABS = {
     "dashboard": "📊 Dashboard",
@@ -14,52 +13,52 @@ TABS = {
 }
 
 def run():
-    # ============ SIDEBAR STARTS HERE ============
+    # ============ SIDEBAR ============
     with st.sidebar:
-        # Profile Section
-        st.markdown(f"<h1 style='text-align: center; font-size: 3rem;'>👨‍🌾</h1>", unsafe_allow_html=True)
-        st.markdown(f"<h2 style='text-align: center;'>{PRODUCER_NAME}</h2>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align: center; color: #666;'>Producer Portal</p>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center;'>👨‍🌾</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center;'>{PRODUCER_NAME}</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #666;'>Producer Portal</p>", unsafe_allow_html=True)
         st.markdown("---")
         
-        # Navigation - Simple and clean
-        st.subheader("Navigation")
         selected = st.radio(
-            "Go to",
+            "Navigation",
             list(TABS.keys()),
             format_func=lambda x: TABS[x],
             label_visibility="collapsed",
-            key="producer_navigation"
+            key="producer_nav"
         )
         
         st.markdown("---")
-        
-        # Quick Stats
-        st.subheader("Quick Stats")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Orders", "24", "+3")
-        with col2:
-            st.metric("Rating", "4.8", "⭐")
+        st.metric("Orders", "24", "+3")
+        st.caption("Last updated: Just now")
         
         st.markdown("---")
-        
-        # AI Toggle
         show_ai = st.checkbox("🤖 AI Assistant", value=False)
         st.session_state.show_ai = show_ai
         
         st.markdown("---")
-        
-        # Logout
-        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+        if st.button("🚪 Logout"):
             st.session_state.clear()
             st.rerun()
-    # ============ SIDEBAR ENDS HERE ============
     
-    # Main Content Area (outside sidebar context)
-    st.title(f"{TABS[selected]}")
+    # ============ FALLBACK TOP NAVIGATION (for mobile) ============
+    st.markdown("### Navigation")
+    selected_top = st.radio(
+        "Go to page",
+        list(TABS.keys()),
+        format_func=lambda x: TABS[x],
+        label_visibility="collapsed",
+        horizontal=True,
+        key="producer_top_nav"
+    )
     
-    # Route to selected page
+    # Use whichever was selected (sidebar or top nav)
+    if selected_top:
+        selected = selected_top
+    
+    st.markdown("---")
+    
+    # Main Content
     if selected == "dashboard":
         render_dashboard()
     elif selected == "inventory":
@@ -70,79 +69,71 @@ def run():
         render_ai_insights()
     elif selected == "settings":
         render_settings()
+    
+    if st.session_state.get("show_ai", False):
+        from producer.ai_assistant.chat import assistant
+        with st.expander("🤖 AI Assistant", expanded=True):
+            assistant.render()
 
 def render_dashboard():
-    """Simple dashboard to test"""
-    st.header("Dashboard")
-    
-    # KPI Cards
+    st.header("📊 Producer Dashboard")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Active Orders", "24", "+3 today")
+        st.metric("Orders", "24", "+3")
     with col2:
-        st.metric("Inventory Turn", "4.2x", "+0.3")
+        st.metric("Turn", "4.2x", "+0.3")
     with col3:
-        st.metric("Avg Price", "$4.85", "+2.1%")
+        st.metric("Price", "$4.85", "+2.1%")
     with col4:
-        st.metric("Risk Score", "12%", "-3%")
+        st.metric("Risk", "12%", "-3%")
     
-    st.markdown("---")
-    
-    # Simple chart
-    st.subheader("Yield Performance (30 Days)")
+    st.subheader("Yield Performance")
     import pandas as pd
     import plotly.express as px
     from datetime import datetime, timedelta
     
     dates = [datetime.now() - timedelta(days=x) for x in range(30, 0, -1)]
-    values = [100 + x * 0.5 + (x % 5) * 2 for x in range(30)]
-    
-    df = pd.DataFrame({"Date": dates, "Yield (tons)": values})
-    fig = px.line(df, x="Date", y="Yield (tons)", template="plotly_white")
-    st.plotly_chart(fig, use_container_width=True)
+    values = [100 + x * 0.5 for x in range(30)]
+    df = pd.DataFrame({"Date": dates, "Yield": values})
+    st.plotly_chart(px.line(df, x="Date", y="Yield", template="plotly_white"), use_container_width=True)
 
 def render_inventory():
-    """Simple inventory page"""
-    st.header("Inventory Management")
+    st.header("📦 Inventory")
     
-    # Simple table
     import pandas as pd
     
-    inventory_data = [
-        {"SKU": "AGR-001", "Product": "Organic Wheat", "Stock": 450, "Min": 100, "Price": 4.20},
-        {"SKU": "AGR-002", "Product": "Fresh Dairy", "Stock": 35, "Min": 50, "Price": 3.50},
-        {"SKU": "AGR-003", "Product": "Premium Avocados", "Stock": 12, "Min": 40, "Price": 12.00},
-    ]
+    # Get inventory from DB or use mock
+    try:
+        from producer.utils.db import db
+        inventory = db.get_inventory()
+    except:
+        inventory = [
+            {"sku": "AGR-001", "name": "Organic Wheat", "stock": 450, "min": 100, "price": 4.20},
+            {"sku": "AGR-002", "name": "Fresh Dairy", "stock": 35, "min": 50, "price": 3.50},
+        ]
     
-    df = pd.DataFrame(inventory_data)
-    st.dataframe(df, use_container_width=True)
+    if inventory:
+        df = pd.DataFrame(inventory)
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No inventory items")
 
 def render_marketplace():
-    """Simple marketplace page"""
-    st.header("Merchant Matching")
-    st.write("Find the best merchants for your products")
-    
+    st.header("🤝 Merchant Matching")
     category = st.selectbox("Category", ["Grains", "Dairy", "Fruits", "Vegetables"])
-    radius = st.slider("Radius (miles)", 10, 500, 100)
-    
-    if st.button("Find Matches"):
-        st.success("Found 3 matches!")
-        for i, merchant in enumerate(["FoodCo Distributors", "FreshChain Inc", "OrganicMarket"], 1):
-            st.write(f"{i}. **{merchant}** - {90-i*3}% match")
+    if st.button("🔍 Find Matches"):
+        st.success("Found matches!")
+        st.write("- FoodCo Distributors: 95% match")
+        st.write("- FreshChain Inc: 87% match")
 
 def render_ai_insights():
-    """Simple AI insights page"""
-    st.header("AI Insights")
-    st.info("Price forecasts, demand predictions, and recommendations will appear here.")
+    st.header("💡 AI Insights")
+    st.info("AI-powered recommendations coming soon")
 
 def render_settings():
-    """Simple settings page"""
-    st.header("Settings")
-    
-    with st.form("settings_form"):
+    st.header("⚙️ Settings")
+    with st.form("settings"):
         st.text_input("Farm Name", value="Green Valley Farms")
-        st.text_input("Contact Person", value="John Producer")
         st.text_input("Email", value="producer@demo.com")
-        
-        if st.form_submit_button("Save Changes"):
-            st.success("Settings saved!")
+        if st.form_submit_button("Save"):
+            st.success("Saved!")
