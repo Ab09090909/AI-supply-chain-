@@ -125,11 +125,15 @@ def login_page():
 # ============ PRODUCER PORTAL ============
 
 def producer_portal():
-    """Producer portal with working sidebar"""
-    from producer.sidebar import render as render_sidebar
+    """Producer portal - SIDEBAR CONTEXT IS HERE IN app.py"""
     
-    # Render sidebar and get selected page
-    page = render_sidebar()
+    # ============ SIDEBAR IS CREATED HERE ============
+    with st.sidebar:
+        # Import and call sidebar render function
+        # The render() function will output content directly into this sidebar context
+        from producer.sidebar import render as render_sidebar
+        page = render_sidebar()
+    # ============ END SIDEBAR ============
     
     # Main content based on selection
     if page == "Dashboard":
@@ -363,8 +367,8 @@ def show_orders():
         st.markdown("### Product Details")
         st.write("- **Item:** Organic Wheat, Grade A")
         st.write("- **Quantity:** 50 metric tons")
-        st.write("- **Price:** \$250.00/ton")
-        st.write("- **Total:** \$12,500.00")
+        st.write("- **Price:** $250.00/ton")
+        st.write("- **Total:** $12,500.00")
         st.markdown("---")
         st.markdown("### Delivery Terms")
         st.write("- **Deadline:** February 15, 2024")
@@ -372,8 +376,8 @@ def show_orders():
         st.write("- **Penalty:** 0.5% per day")
         st.markdown("---")
         st.markdown("### Payment Terms")
-        st.write("- **Advance:** 30% (\$3,750) on confirmation")
-        st.write("- **Balance:** 70% (\$8,750) on delivery")
+        st.write("- **Advance:** 30% ($3,750) on confirmation")
+        st.write("- **Balance:** 70% ($8,750) on delivery")
         st.markdown("---")
         st.markdown("### AI Verification ✅")
         st.write("- Supplier verified (3 years)")
@@ -459,19 +463,22 @@ def show_settings():
 
 def merchant_portal():
     from merchant.sidebar import render as render_sidebar
-    page = render_sidebar()
+    with st.sidebar:
+        page = render_sidebar()
     st.title(f"Merchant - {page}")
     st.write(f"Merchant {page} content coming soon...")
 
 def customer_portal():
     from customer.sidebar import render as render_sidebar
-    page = render_sidebar()
+    with st.sidebar:
+        page = render_sidebar()
     st.title(f"Customer - {page}")
     st.write(f"Customer {page} content coming soon...")
 
 def admin_portal():
     from admin.sidebar import render as render_sidebar
-    page = render_sidebar()
+    with st.sidebar:
+        page = render_sidebar()
     st.title(f"Admin - {page}")
     st.write(f"Admin {page} content coming soon...")
 
