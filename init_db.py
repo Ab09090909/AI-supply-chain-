@@ -1,23 +1,30 @@
 """
-Database Initialization - Run this once
+Database Initialization Script
+Run this ONCE to create and seed the database
 """
 import sqlite3
 import os
 from pathlib import Path
 
-def init_db():
+def init_database():
+    """Create SQLite database with schema and demo data"""
+    
     # Create data directory
     data_dir = Path(__file__).parent / "data"
     data_dir.mkdir(exist_ok=True)
     
     db_path = data_dir / "supply_chain.db"
     
-    # Connect and create tables
+    print("🚀 Initializing database...")
+    
+    # Connect to database
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     # Enable foreign keys
     cursor.execute("PRAGMA foreign_keys = ON")
+    
+    # ============ CREATE TABLES ============
     
     # Users table
     cursor.execute("""
@@ -163,11 +170,101 @@ def init_db():
         )
     """)
     
+    # AI predictions table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prediction_type TEXT NOT NULL,
+            input_data JSON NOT NULL,
+            prediction_result JSON NOT NULL,
+            confidence REAL,
+            model_version TEXT,
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    
+    # Notifications table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            type TEXT DEFAULT 'info',
+            data JSON,
+            is_read BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    
+    conn.commit()
+    print("✅ Tables created successfully")
+    
+    # ============ SEED DEMO DATA ============
+    
+    # Demo users
+    users = [
+        ("producer@demo.com", "Green Valley Farms", "producer", "hash123", "+1 555-0101", "California, USA", 1),
+        ("merchant@demo.com", "Metro Retail Inc", "merchant", "hash123", "+1 555-0102", "New York, USA", 1),
+        ("customer@demo.com", "John Consumer", "customer", "hash123", "+1 555-0103", "Texas, USA", 1),
+        ("admin@demo.com", "System Admin", "admin", "hash123", "+1 555-0100", "Remote", 1),
+    ]
+    
+    cursor.executemany(
+        """INSERT OR IGNORE INTO users (email, name, role, password_hash, phone, location, is_verified)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        users
+    )
+    
+    # Demo products
+    products = [
+        ("AGR-001", "Organic Wheat", "Premium grade wheat", "Grains", 4.20, 450, "ton", 100, 50, 1, 1),
+        ("AGR-002", "Fresh Dairy Milk", "Farm fresh whole milk", "Dairy", 3.50, 35, "gallon", 50, 100, 1, 1),
+        ("AGR-003", "Premium Avocados", "Hass avocados", "Fruits", 12.00, 12, "unit", 40, 100, 1, 1),
+        ("AGR-004", "Free Range Eggs", "Organic free-range eggs", "Dairy", 5.50, 200, "dozen", 80, 50, 1, 1),
+    ]
+    
+    cursor.executemany(
+        """INSERT OR IGNORE INTO products 
+           (sku, name, description, category, price, stock, unit, reorder_point, reorder_quantity, producer_id, is_active)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        products
+    )
+    
+    # Demo orders
+    orders = [
+        ("ORD-2024-001", 2, "merchant", 1, "producer", 
+         '[{"sku":"AGR-001","name":"Organic Wheat","qty":10,"price":4.20}]',
+         42.00, 0, 0, 42.00, "delivered", "paid",
+         '{"city":"NYC"}',
+         "Electronically processed"),
+        
+        ("ORD-2024-002", 3, "customer", 1, "producer",
+         '[{"sku":"AGR-003","name":"Premium Avocados","qty":6,"price":12.00}]',
+         72.00, 0, 0, 72.00, "delivered", "paid",
+         '{"city":"LA"}',
+         "Gift wrapping requested"),
+    ]
+    
+    cursor.executemany(
+        """INSERT OR IGNORE INTO orders 
+           (order_number, buyer_id, buyer_role, seller_id, seller_role, items, subtotal, total, status, payment_status, shipping_address, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        orders
+    )
+    
     conn.commit()
     conn.close()
     
-    print(f"✅ Database created at: {db_path}")
-    return db_path
+    print("✅ Demo data seeded successfully")
+    print(f"   - {len(users)} users")
+    print(f"   - {len(products)} products")
+    print(f"   - {len(orders)} orders")
+    print(f"\n📍 Database location: {db_path}")
+    print("\n🎉 Setup complete! Run: streamlit run app.py")
 
 if __name__ == "__main__":
-    init_db()
+    init_database()
