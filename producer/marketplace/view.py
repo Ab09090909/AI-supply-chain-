@@ -1,6 +1,5 @@
 """
 Producer Marketplace / Merchant Matching
-Independent module
 """
 import streamlit as st
 import random
