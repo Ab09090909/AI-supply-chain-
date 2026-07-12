@@ -1,6 +1,5 @@
 """
 Producer AI Assistant Chat
-Self-contained module
 """
 import streamlit as st
 import os
