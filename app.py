@@ -2,41 +2,23 @@
 AI Supply Chain Platform - Login & Producer Portal
 """
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import datetime, timedelta
 
-# Page config - MUST be first
+# Page config - THIS MUST BE FIRST
 st.set_page_config(
     page_title="AI Supply Chain Platform",
     page_icon="🔗",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded"  # This keeps sidebar open
 )
 
-# FORCE SIDEBAR OPEN - This CSS ensures sidebar is always visible
+# MINIMAL CSS - Only hide unwanted elements, don't force layout
 st.markdown("""
 <style>
-/* Force sidebar open */
-section[data-testid="stSidebar"] {
-    display: block !important;
-    width: 280px !important;
-    min-width: 280px !important;
-    max-width: 280px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    z-index: 999 !important;
-}
-
-/* Push main content to the right */
-.main > div {
-    margin-left: 280px !important;
-    padding-left: 2rem !important;
-}
-
-/* Hide the collapse button */
-button[kind="header"] {
+/* Hide only the collapse button, don't touch sidebar layout */
+[data-testid="collapsedControl"] {
     display: none !important;
 }
 
@@ -51,14 +33,13 @@ def login_page():
     st.title("🔗 AI Supply Chain Platform")
     st.markdown("### Multi-Enterprise Supply Chain Intelligence")
     
-    # Create a container for centering
     with st.container():
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col2:
             st.markdown("---")
             
-            # Role selection - FORCE PRODUCER FOR TESTING
+            # Role selection
             st.subheader("Select Portal")
             role = st.radio(
                 "Choose your role",
@@ -70,7 +51,7 @@ def login_page():
                     "Admin": "⚙️ Admin Console"
                 }[x],
                 label_visibility="collapsed",
-                index=0  # DEFAULT TO PRODUCER (first option)
+                index=0  # Default to Producer
             )
             
             st.markdown("---")
@@ -95,11 +76,11 @@ def login_page():
             st.caption("🔒 Secure login | Demo mode available")
 
 def producer_portal():
-    """Producer portal with WORKING sidebar"""
+    """Producer portal with working sidebar"""
     
     # ============ SIDEBAR ============
     with st.sidebar:
-        # Profile Section
+        # Profile
         st.markdown("""
         <div style="text-align: center; padding: 1rem 0;">
             <div style="
@@ -114,7 +95,6 @@ def producer_portal():
                 font-weight: bold; 
                 font-size: 32px;
                 margin: 0 auto;
-                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
             ">👨‍🌾</div>
             <h2 style='margin: 1rem 0 0 0; font-size: 1.2rem;'>Green Valley Farms</h2>
             <p style='color: #666; font-size: 0.9rem; margin: 0;'>Producer Portal</p>
@@ -137,7 +117,6 @@ def producer_portal():
         # Quick Stats
         st.subheader("Quick Stats")
         st.metric("Active Orders", "24", "+3 today")
-        st.metric("Inventory Items", "6")
         st.metric("Revenue", "$45.2K", "+5.3%")
         
         st.markdown("---")
@@ -149,7 +128,7 @@ def producer_portal():
         st.markdown("---")
         
         # Logout
-        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+        if st.button("🚪 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.role = None
             st.rerun()
@@ -201,10 +180,6 @@ def show_dashboard():
     
     with col1:
         st.subheader("📈 Yield Performance (30 Days)")
-        import pandas as pd
-        import plotly.express as px
-        from datetime import datetime, timedelta
-        
         dates = [datetime.now() - timedelta(days=x) for x in range(30, 0, -1)]
         values = [100 + x * 0.5 + (x % 5) * 2 for x in range(30)]
         
@@ -483,7 +458,6 @@ def main():
         if st.session_state.role == "producer":
             producer_portal()
         else:
-            # If not producer, show message and let them switch
             st.warning(f"Only Producer portal is ready now. You selected: {st.session_state.role}")
             if st.button("Switch to Producer Portal"):
                 st.session_state.role = "producer"
