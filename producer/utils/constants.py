@@ -1,20 +1,15 @@
 """
-Producer-specific constants
-NO shared imports allowed
+Producer Constants
 """
-import os
-
-# Producer info
 PRODUCER_NAME = "Green Valley Farms"
 PRODUCER_ID = 1
-PRODUCER_EMAIL = "producer@demo.com"
 
 # Navigation tabs
 TABS = {
     "dashboard": "📊 Dashboard",
     "inventory": "📦 Inventory",
-    "marketplace": "🤝 Merchant Matching",
-    "ai_insights": "💡 AI Insights",
+    "orders": "📋 Orders",
+    "marketplace": "🤝 Marketplace",
     "settings": "⚙️ Settings"
 }
 
@@ -29,5 +24,5 @@ COLORS = {
 }
 
 # Thresholds
-REORDER_THRESHOLD = 1.2  # 120% of min stock
+REORDER_THRESHOLD = 1.2
 FRAUD_THRESHOLD = 0.7
