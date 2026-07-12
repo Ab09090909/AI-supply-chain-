@@ -2,6 +2,12 @@
 AI Supply Chain Platform - Login & Producer Portal
 """
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import datetime, timedelta
+import sqlite3
+import json
+from pathlib import Path
 
 # Page config
 st.set_page_config(
@@ -19,6 +25,60 @@ footer {visibility: hidden;}
 header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
+# ============ DATABASE FUNCTIONS ============
+
+def get_db_connection():
+    """Get SQLite database connection"""
+    db_path = Path(__file__).parent / "data" / "supply_chain.db"
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def get_inventory_from_db():
+    """Get inventory from database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.*, u.name as producer_name 
+            FROM products p
+            JOIN users u ON p.producer_id = u.id
+            WHERE p.producer_id = 1 AND p.is_active = 1
+        """)
+        results = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return results
+    except Exception as e:
+        print(f"DB Error: {e}")
+        return []
+
+def get_orders_from_db():
+    """Get orders from database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT o.*, u.name as buyer_name
+            FROM orders o
+            JOIN users u ON o.buyer_id = u.id
+            WHERE o.seller_id = 1 AND o.seller_role = 'producer'
+            ORDER BY o.created_at DESC
+        """)
+        results = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        # Parse JSON fields
+        for order in results:
+            if order.get('items'):
+                order['items'] = json.loads(order['items'])
+        
+        return results
+    except Exception as e:
+        print(f"DB Error: {e}")
+        return []
+
+# ============ LOGIN PAGE ============
 
 def login_page():
     """Simple login page"""
@@ -48,8 +108,8 @@ def login_page():
             st.markdown("---")
             
             with st.form("login_form"):
-                st.text_input("Email", value="producer@demo.com")
-                st.text_input("Password", value="password", type="password")
+                st.text_input("Email", value="producer@demo.com", placeholder="Enter your email")
+                st.text_input("Password", value="password", type="password", placeholder="Enter your password")
                 
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -62,9 +122,10 @@ def login_page():
                     st.session_state.role = role.lower()
                     st.rerun()
 
+# ============ PRODUCER PORTAL ============
+
 def producer_portal():
-    """Producer portal using separate sidebar file"""
-    # Import sidebar function
+    """Producer portal with working sidebar"""
     from producer.sidebar import render as render_sidebar
     
     # Render sidebar and get selected page
@@ -90,147 +151,209 @@ def producer_portal():
             if user_input:
                 st.write(f"**AI:** I received '{user_input}'. This is a demo response.")
 
-def merchant_portal():
-    """Merchant portal using separate sidebar file"""
-    from merchant.sidebar import render as render_sidebar
-    page = render_sidebar()
-    
-    st.title(f"Merchant - {page}")
-    st.write(f"Merchant {page} content coming soon...")
-
-def customer_portal():
-    """Customer portal using separate sidebar file"""
-    from customer.sidebar import render as render_sidebar
-    page = render_sidebar()
-    
-    st.title(f"Customer - {page}")
-    st.write(f"Customer {page} content coming soon...")
-
-def admin_portal():
-    """Admin portal using separate sidebar file"""
-    from admin.sidebar import render as render_sidebar
-    page = render_sidebar()
-    
-    st.title(f"Admin - {page}")
-    st.write(f"Admin {page} content coming soon...")
-
 def show_dashboard():
-    """Dashboard content"""
+    """Producer Dashboard with REAL database data"""
     st.title("📊 Producer Dashboard")
     st.caption("Welcome back! Here's your supply chain overview.")
     
+    # KPI Cards
     col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
-        st.metric("Active Orders", "24", "+3 today")
+        orders = get_orders_from_db()
+        st.metric(label="Active Orders", value=str(len(orders)), delta="+3 today")
+    
     with col2:
-        st.metric("Inventory Turn", "4.2x", "+0.3")
+        inventory = get_inventory_from_db()
+        st.metric(label="Inventory Items", value=str(len(inventory)))
+    
     with col3:
-        st.metric("Avg Price", "$4.85", "+2.1%")
+        st.metric(label="Avg Price", value="$4.85", delta="+2.1%")
+    
     with col4:
-        st.metric("Risk Score", "12%", "-3%", delta_color="inverse")
+        st.metric(label="Risk Score", value="12%", delta="-3%", delta_color="inverse")
     
     st.markdown("---")
     
+    # Charts
     col1, col2 = st.columns(2)
+    
     with col1:
-        st.subheader("📈 Yield Performance")
-        import pandas as pd
-        import plotly.express as px
-        from datetime import datetime, timedelta
-        
+        st.subheader("📈 Yield Performance (30 Days)")
         dates = [datetime.now() - timedelta(days=x) for x in range(30, 0, -1)]
-        values = [100 + x * 0.5 for x in range(30)]
-        df = pd.DataFrame({"Date": dates, "Yield": values})
-        st.plotly_chart(px.line(df, x="Date", y="Yield", template="plotly_white"), use_container_width=True)
+        values = [100 + x * 0.5 + (x % 5) * 2 for x in range(30)]
+        
+        df = pd.DataFrame({"Date": dates, "Yield (tons)": values})
+        fig = px.line(df, x="Date", y="Yield (tons)", template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.subheader("🎯 Quality Index")
         quality_data = pd.DataFrame({
-            "Metric": ["Purity", "Moisture", "Protein"],
-            "Score": [98, 95, 96]
+            "Metric": ["Purity", "Moisture", "Protein", "Appearance"],
+            "Score": [98, 95, 96, 97]
         })
-        st.plotly_chart(px.bar(quality_data, x="Score", y="Metric", orientation="h", template="plotly_white"), use_container_width=True)
+        fig = px.bar(quality_data, x="Score", y="Metric", orientation="h", 
+                     color="Score", template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Recent Orders from database
+    st.subheader("📋 Recent Orders")
+    
+    if orders:
+        for order in orders[:3]:
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns(5)
+                with col1:
+                    order_num = order.get('order_number', f"#{order.get('id', 'N/A')}")
+                    st.write(f"**{order_num}**")
+                with col2:
+                    st.write(order.get('buyer_name', 'Unknown'))
+                with col3:
+                    items = order.get('items', [])
+                    item_name = items[0].get('name', 'N/A') if items else 'N/A'
+                    st.write(item_name)
+                with col4:
+                    st.write(f"${order.get('total', 0):,.2f}")
+                with col5:
+                    status = order.get('status', 'Unknown')
+                    if status == "delivered":
+                        st.success(status)
+                    elif status == "processing":
+                        st.info(status)
+                    else:
+                        st.warning(status)
+                st.markdown("---")
+    else:
+        st.info("No orders yet")
 
 def show_inventory():
-    """Inventory content"""
+    """Producer Inventory with REAL database data"""
     st.title("📦 Inventory Management")
+    st.caption("Track stock levels and manage products")
     
+    # Get real inventory from database
+    inventory = get_inventory_from_db()
+    
+    # Stats
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total SKUs", "6")
+        st.metric("Total SKUs", str(len(inventory)))
     with col2:
-        st.metric("Stock Value", "$48,250")
+        total_value = sum(item.get('stock', 0) * item.get('price', 0) for item in inventory)
+        st.metric("Stock Value", f"${total_value:,.2f}")
     with col3:
-        st.metric("Low Stock", "3", delta_color="inverse")
+        low_stock = sum(1 for item in inventory if 0 < item.get('stock', 0) <= item.get('reorder_point', 0) * 1.2)
+        st.metric("Low Stock", str(low_stock), delta_color="inverse")
     with col4:
-        st.metric("Out of Stock", "1", delta_color="inverse")
+        out_of_stock = sum(1 for item in inventory if item.get('stock', 0) == 0)
+        st.metric("Out of Stock", str(out_of_stock), delta_color="inverse")
     
     st.markdown("---")
     
-    import pandas as pd
-    inventory_data = [
-        {"SKU": "AGR-001", "Product": "Organic Wheat", "Stock": 450, "Min": 100, "Price": 4.20},
-        {"SKU": "AGR-002", "Product": "Fresh Dairy", "Stock": 35, "Min": 50, "Price": 3.50},
-        {"SKU": "AGR-003", "Product": "Premium Avocados", "Stock": 12, "Min": 40, "Price": 12.00},
-    ]
-    st.dataframe(pd.DataFrame(inventory_data), use_container_width=True)
+    # Inventory table
+    if inventory:
+        df_data = []
+        for item in inventory:
+            stock = item.get('stock', 0)
+            min_stock = item.get('reorder_point', 0)
+            
+            if stock == 0:
+                status = "🔴 Critical"
+            elif stock <= min_stock * 1.2:
+                status = "🟡 Low"
+            else:
+                status = "🟢 Good"
+            
+            df_data.append({
+                "SKU": item.get('sku', ''),
+                "Product": item.get('name', ''),
+                "Category": item.get('category', ''),
+                "Stock": f"{stock} {item.get('unit', 'units')}",
+                "Min Level": min_stock,
+                "Status": status,
+                "Price": f"${item.get('price', 0):.2f}",
+                "Value": f"${stock * item.get('price', 0):.2f}"
+            })
+        
+        df = pd.DataFrame(df_data)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    else:
+        st.warning("No inventory items found")
+    
+    st.markdown("---")
+    
+    # Actions
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("➕ Add Product", use_container_width=True, type="primary"):
+            st.success("Add product form would open here")
+    with col2:
+        if st.button("📦 Generate Restock Report"):
+            low_items = [item for item in inventory if item.get('stock', 0) <= item.get('reorder_point', 0) * 1.2]
+            if low_items:
+                st.warning(f"Restock needed for {len(low_items)} items:")
+                for item in low_items:
+                    st.write(f"- {item.get('name')}: Current {item.get('stock')}, Min {item.get('reorder_point')}")
+            else:
+                st.success("All stock levels healthy!")
+    with col3:
+        if st.button("📥 Export CSV"):
+            st.success("Inventory exported to CSV")
 
 def show_orders():
-    """Orders content"""
+    """Producer Orders & Agreements"""
     st.title("📋 Orders & Agreements")
+    st.caption("Manage incoming orders and contracts")
     
-    tab1, tab2 = st.tabs(["Received Orders", "Agreement Preview"])
+    # Get orders from database
+    orders = get_orders_from_db()
+    
+    # Tabs
+    tab1, tab2 = st.tabs(["📥 Received Orders", "📄 Agreement Preview"])
     
     with tab1:
-        st.subheader("Incoming Orders")
+        st.subheader("Incoming Order Requests")
         
-        with st.container():
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.write("**#ORD-2024-0891**")
-                st.caption("Metro Retail Inc")
-            with col2:
-                st.write("Organic Wheat (50 tons)")
-            with col3:
-                st.write("$12,500.00")
-            with col4:
-                st.write("🟡 Pending")
-            
-            btn_col1, btn_col2, btn_col3 = st.columns(3)
-            with btn_col1:
-                if st.button("📄 Review", key="agree_1"):
-                    st.session_state.show_agreement = True
-            with btn_col2:
-                if st.button("✅ Accept", key="accept_1", type="primary"):
-                    st.success("Order accepted!")
-            with btn_col3:
-                if st.button("⏸️ Hold", key="hold_1"):
-                    st.info("On hold")
-            st.markdown("---")
-        
-        with st.container():
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.write("**#ORD-2024-0890**")
-                st.caption("Fresh Market Co")
-            with col2:
-                st.write("Premium Avocados (200 units)")
-            with col3:
-                st.write("$3,400.00")
-            with col4:
-                st.write("🔵 Awaiting Response")
-            
-            btn_col1, btn_col2, btn_col3 = st.columns(3)
-            with btn_col1:
-                if st.button("📄 Review", key="agree_2"):
-                    st.session_state.show_agreement = True
-            with btn_col2:
-                if st.button("✅ Accept", key="accept_2", type="primary"):
-                    st.success("Order accepted!")
-            with btn_col3:
-                if st.button("⏸️ Hold", key="hold_2"):
-                    st.info("On hold")
-            st.markdown("---")
+        if orders:
+            for order in orders:
+                with st.container():
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        order_num = order.get('order_number', f"#{order.get('id')}")
+                        st.write(f"**{order_num}**")
+                        st.caption(order.get('buyer_name', 'Unknown'))
+                    with col2:
+                        items = order.get('items', [])
+                        item_name = items[0].get('name', 'N/A') if items else 'N/A'
+                        qty = items[0].get('qty', '') if items else ''
+                        st.write(f"{item_name} ({qty})")
+                    with col3:
+                        st.write(f"${order.get('total', 0):,.2f}")
+                    with col4:
+                        status = order.get('status', 'pending')
+                        if status == 'delivered':
+                            st.success("Delivered")
+                        elif status == 'processing':
+                            st.info("Processing")
+                        elif status == 'pending':
+                            st.warning("Pending")
+                        else:
+                            st.write(status)
+                    
+                    btn_col1, btn_col2, btn_col3 = st.columns(3)
+                    with btn_col1:
+                        if st.button("📄 Review", key=f"agree_{order['id']}"):
+                            st.session_state.show_agreement = True
+                    with btn_col2:
+                        if st.button("✅ Accept", key=f"accept_{order['id']}", type="primary"):
+                            st.success(f"Order {order.get('order_number')} accepted!")
+                    with btn_col3:
+                        if st.button("⏸️ Hold", key=f"hold_{order['id']}"):
+                            st.info("Order placed on hold")
+                    st.markdown("---")
+        else:
+            st.info("No orders found")
     
     with tab2:
         st.subheader("Contract Agreement Preview")
@@ -240,8 +363,8 @@ def show_orders():
         st.markdown("### Product Details")
         st.write("- **Item:** Organic Wheat, Grade A")
         st.write("- **Quantity:** 50 metric tons")
-        st.write("- **Price:** $250.00/ton")
-        st.write("- **Total:** $12,500.00")
+        st.write("- **Price:** \$250.00/ton")
+        st.write("- **Total:** \$12,500.00")
         st.markdown("---")
         st.markdown("### Delivery Terms")
         st.write("- **Deadline:** February 15, 2024")
@@ -249,8 +372,8 @@ def show_orders():
         st.write("- **Penalty:** 0.5% per day")
         st.markdown("---")
         st.markdown("### Payment Terms")
-        st.write("- **Advance:** 30% ($3,750) on confirmation")
-        st.write("- **Balance:** 70% ($8,750) on delivery")
+        st.write("- **Advance:** 30% (\$3,750) on confirmation")
+        st.write("- **Balance:** 70% (\$8,750) on delivery")
         st.markdown("---")
         st.markdown("### AI Verification ✅")
         st.write("- Supplier verified (3 years)")
@@ -332,6 +455,28 @@ def show_settings():
             if st.form_submit_button("Update Password"):
                 st.success("✅ Password updated!")
 
+# ============ OTHER PORTALS ============
+
+def merchant_portal():
+    from merchant.sidebar import render as render_sidebar
+    page = render_sidebar()
+    st.title(f"Merchant - {page}")
+    st.write(f"Merchant {page} content coming soon...")
+
+def customer_portal():
+    from customer.sidebar import render as render_sidebar
+    page = render_sidebar()
+    st.title(f"Customer - {page}")
+    st.write(f"Customer {page} content coming soon...")
+
+def admin_portal():
+    from admin.sidebar import render as render_sidebar
+    page = render_sidebar()
+    st.title(f"Admin - {page}")
+    st.write(f"Admin {page} content coming soon...")
+
+# ============ MAIN ============
+
 def main():
     # Initialize session state
     if "logged_in" not in st.session_state:
@@ -343,7 +488,6 @@ def main():
     if not st.session_state.logged_in:
         login_page()
     else:
-        # Route to appropriate portal
         if st.session_state.role == "producer":
             producer_portal()
         elif st.session_state.role == "merchant":
