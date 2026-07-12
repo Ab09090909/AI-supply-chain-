@@ -1,10 +1,11 @@
 """
-Producer Sidebar - Separate file for clean context
+Producer Sidebar - NO with st.sidebar wrapper!
+Just returns the selected page, renders content directly
 """
 import streamlit as st
 
 def render():
-    """Render the complete producer sidebar"""
+    """Render sidebar content - NO sidebar context here!"""
     
     # Profile Header
     st.markdown("""
