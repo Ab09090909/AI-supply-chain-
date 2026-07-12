@@ -1,6 +1,5 @@
 """
 Producer Portal - Main Entry Point
-Fully self-contained module
 """
 import streamlit as st
 from producer.dashboard.view import render as render_dashboard
