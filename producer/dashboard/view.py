@@ -1,6 +1,5 @@
 """
 Producer Dashboard View
-Independent module - no imports from other roles
 """
 import streamlit as st
 import pandas as pd
@@ -9,7 +8,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import random
 
-from producer.utils.db import db
+from producer.utils.db import db  # This now imports ProducerDB instance
 from producer.utils.helpers import generate_mock_chart_data, format_currency
 
 def render():
@@ -112,18 +111,20 @@ def render():
     # Recent Orders Table
     st.subheader("📋 Recent Orders")
     
-    orders = db.get_orders(1)
+    # Use db (ProducerDB instance) to get orders
+    orders = db.get_orders()  # This now works because db is ProducerDB
+    
     if orders:
         orders_df = pd.DataFrame(orders[:5])
         
         # Format the dataframe for display
         display_df = pd.DataFrame({
             "Order ID": orders_df.get("order_number", orders_df.get("id", [])),
-            "Merchant": orders_df.get("merchant", ["Unknown"] * len(orders_df)),
-            "Product": orders_df.get("product", ["N/A"] * len(orders_df)),
-            "Amount": [format_currency(x) for x in orders_df.get("total", orders_df.get("amount", [0]*len(orders_df)))],
+            "Merchant": orders_df.get("buyer_name", ["Unknown"] * len(orders_df)),
+            "Product": [items[0].get('name', 'N/A') if items else 'N/A' for items in orders_df.get("items", [[]] * len(orders_df))],
+            "Amount": [format_currency(x) for x in orders_df.get("total", [0]*len(orders_df))],
             "Status": orders_df.get("status", ["Unknown"] * len(orders_df)),
-            "Date": orders_df.get("date", orders_df.get("created_at", [""] * len(orders_df)))
+            "Date": orders_df.get("created_at", [""] * len(orders_df))
         })
         
         st.dataframe(
