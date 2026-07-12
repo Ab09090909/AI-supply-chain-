@@ -12,3 +12,4 @@ python-dotenv==1.0.0
 groq==0.4.0
 fpdf2==2.7.6
 sqlalchemy==2.0.25
+psycopg2-binary==2.9.9  # Added for PostgreSQL
