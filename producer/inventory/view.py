@@ -1,6 +1,5 @@
 """
 Producer Inventory View
-Independent module
 """
 import streamlit as st
 import pandas as pd
@@ -12,7 +11,8 @@ def render():
     st.title("📦 Inventory Management")
     st.caption("Track stock levels and manage products")
     
-    inventory = db.get_inventory(1)
+    # Use db (ProducerDB instance)
+    inventory = db.get_inventory()
     
     # KPI Stats
     col1, col2, col3, col4 = st.columns(4)
@@ -26,7 +26,7 @@ def render():
     
     with col3:
         low_stock = sum(1 for item in inventory 
-                       if 0 < item.get('stock', 0) <= item.get('min', 0) * 1.2)
+                       if 0 < item.get('stock', 0) <= item.get('reorder_point', 0) * 1.2)
         st.metric("Low Stock", low_stock, delta_color="inverse")
     
     with col4:
@@ -60,7 +60,7 @@ def render():
         df_data = []
         for item in filtered_inventory:
             stock = item.get('stock', 0)
-            min_stock = item.get('min', 0)
+            min_stock = item.get('reorder_point', 0)
             status, emoji = get_stock_status(stock, min_stock)
             
             df_data.append({
@@ -89,7 +89,7 @@ def render():
     
     # Restock Actions
     st.subheader("📦 Restock Management")
-    low_items = [item for item in inventory if item.get('stock', 0) <= item.get('min', 0) * 1.2]
+    low_items = [item for item in inventory if item.get('stock', 0) <= item.get('reorder_point', 0) * 1.2]
     
     if low_items:
         st.warning(f"⚠️ {len(low_items)} items need restocking:")
@@ -99,13 +99,13 @@ def render():
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
                     st.write(f"**{item.get('name')}** ({item.get('sku')})")
-                    st.caption(f"Current: {item.get('stock')} | Min: {item.get('min')}")
+                    st.caption(f"Current: {item.get('stock')} | Min: {item.get('reorder_point')}")
                 with col2:
                     if st.button("📦 Restock", key=f"restock_{item.get('sku')}"):
                         st.session_state[f"restock_{item.get('sku')}"] = True
                 with col3:
                     if st.button("📊 History", key=f"history_{item.get('sku')}"):
-                        st.info(f"Stock history for {item.get('name')}: Last 30 days average = {item.get('min') * 2} units")
+                        st.info(f"Stock history for {item.get('name')}: Last 30 days average = {item.get('reorder_point', 10) * 2} units")
                 st.markdown("---")
     else:
         st.success("✅ All stock levels are healthy!")
