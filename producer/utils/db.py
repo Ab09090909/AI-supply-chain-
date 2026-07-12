@@ -1,6 +1,5 @@
 """
 Producer Database Access Layer
-Uses the shared database connection
 """
 import json
 from typing import List, Dict, Optional
@@ -8,7 +7,7 @@ from datetime import datetime
 
 # Import shared database connection
 try:
-    from database.connection import db
+    from database.connection import db as shared_db
 except ImportError:
     # Fallback for standalone testing
     import sqlite3
@@ -28,13 +27,14 @@ except ImportError:
             conn.commit()
             conn.close()
             return result
-    db = MockDB()
+    shared_db = MockDB()
 
 class ProducerDB:
     """Producer-specific database operations"""
     
     def __init__(self):
         self.producer_id = 1  # Current producer ID (would come from session)
+        self.db = shared_db  # Use shared connection
     
     def get_inventory(self) -> List[Dict]:
         """Get all inventory items for current producer"""
@@ -45,7 +45,7 @@ class ProducerDB:
             WHERE producer_id = ? AND is_active = 1
             ORDER BY category, name
         """
-        results = db.execute_query(query, (self.producer_id,), fetch=True)
+        results = self.db.execute_query(query, (self.producer_id,), fetch=True)
         return results if results else []
     
     def get_inventory_by_category(self, category: str) -> List[Dict]:
@@ -55,7 +55,7 @@ class ProducerDB:
             WHERE producer_id = ? AND category = ? AND is_active = 1
             ORDER BY name
         """
-        return db.execute_query(query, (self.producer_id, category), fetch=True) or []
+        return self.db.execute_query(query, (self.producer_id, category), fetch=True) or []
     
     def get_low_stock_items(self) -> List[Dict]:
         """Get items below reorder point"""
@@ -66,12 +66,12 @@ class ProducerDB:
             AND is_active = 1
             ORDER BY stock ASC
         """
-        return db.execute_query(query, (self.producer_id,), fetch=True) or []
+        return self.db.execute_query(query, (self.producer_id,), fetch=True) or []
     
     def get_product_by_sku(self, sku: str) -> Optional[Dict]:
         """Get single product by SKU"""
         query = "SELECT * FROM products WHERE sku = ? AND producer_id = ?"
-        results = db.execute_query(query, (sku, self.producer_id), fetch=True)
+        results = self.db.execute_query(query, (sku, self.producer_id), fetch=True)
         return results[0] if results else None
     
     def add_product(self, product_data: Dict) -> bool:
@@ -94,13 +94,13 @@ class ProducerDB:
             product_data.get('reorder_quantity', 50),
             self.producer_id
         )
-        result = db.execute_query(query, params)
+        result = self.db.execute_query(query, params)
         return result is not None
     
     def update_stock(self, sku: str, new_stock: int) -> bool:
         """Update product stock"""
         query = "UPDATE products SET stock = ? WHERE sku = ? AND producer_id = ?"
-        result = db.execute_query(query, (new_stock, sku, self.producer_id))
+        result = self.db.execute_query(query, (new_stock, sku, self.producer_id))
         return result is not None
     
     def get_orders(self, status: str = None) -> List[Dict]:
@@ -124,7 +124,7 @@ class ProducerDB:
             """
             params = (self.producer_id,)
         
-        results = db.execute_query(query, params, fetch=True)
+        results = self.db.execute_query(query, params, fetch=True)
         
         # Parse JSON fields
         for order in results or []:
@@ -164,11 +164,10 @@ class ProducerDB:
             json.dumps(order_data.get('shipping_address', {})),
             order_data.get('notes', '')
         )
-        return db.execute_query(query, params)
+        return self.db.execute_query(query, params)
     
     def get_merchant_matches(self, category: str = None, radius: int = 100) -> List[Dict]:
         """Get AI-matched merchants (mock implementation)"""
-        # In production, this would call the matching ML model
         mock_matches = [
             {"name": "FoodCo Distributors", "match_score": 95, "distance": 15, "rating": 4.8, "capacity": "1000 units/week"},
             {"name": "FreshChain Inc", "match_score": 87, "distance": 25, "rating": 4.6, "capacity": "800 units/week"},
@@ -178,7 +177,6 @@ class ProducerDB:
     
     def get_price_forecast(self, product_id: int, days: int = 30) -> Dict:
         """Get AI price forecast"""
-        # In production, this would call the price prediction model
         return {
             "product_id": product_id,
             "forecast_days": days,
@@ -199,5 +197,5 @@ class ProducerDB:
             "alert": None
         }
 
-# Global instance
-producer_db = ProducerDB()
+# Global instance - this is what should be imported
+db = ProducerDB()
