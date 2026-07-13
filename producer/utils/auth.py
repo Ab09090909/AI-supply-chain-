@@ -109,10 +109,11 @@ def login(email: str, password: str) -> bool:
         if response.user:
             # Get user profile from database (assuming you have a profiles table)
             # Or extract role from user metadata if stored there
+            user_metadata = response.user.user_metadata or {}
             user_data = {
                 "id": response.user.id,
                 "email": response.user.email,
-                "role": response.user.user_metadata.get("role", "producer"),
+                "role": user_metadata.get("role", "producer"),
                 "access_token": response.session.access_token,
                 "refresh_token": response.session.refresh_token,
                 "expires_at": datetime.fromtimestamp(response.session.expires_at).isoformat()
@@ -158,8 +159,8 @@ def logout():
     try:
         supabase = get_supabase_client()
         supabase.auth.sign_out()
-    except:
-        pass
+    except Exception as e:
+        print(f"Sign out error: {str(e)}")
     
     # Clear session state
     st.session_state.pop(SESSION_USER, None)
