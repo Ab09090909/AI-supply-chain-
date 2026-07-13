@@ -45,14 +45,16 @@ def get_time_ago(date_str: str) -> str:
     except:
         return date_str
 
-def get_stock_status(stock: int, min_stock: int) -> tuple:
-    """Get stock status and emoji"""
-    if stock == 0:
-        return "Critical", "🔴"
-    elif stock <= min_stock * 1.2:
-        return "Low", "🟡"
+def get_stock_status(current_stock: int, min_stock: int, max_stock: int) -> str:
+    """Returns the stock status based on current, min, and max thresholds."""
+    if current_stock <= 0:
+        return "Out of Stock"
+    elif current_stock < min_stock:
+        return "Low Stock"
+    elif current_stock > max_stock:
+        return "Overstocked"
     else:
-        return "Good", "🟢"
+        return "In Stock"
 
 def get_status_badge(status: str) -> str:
     """Get HTML badge for order status"""
