@@ -1,18 +1,23 @@
 """
-Producer Helper Functions
+Producer Helper Functions - Formatting, badges, utilities
 """
 from datetime import datetime, timedelta
 import random
 import json
+
 
 def generate_order_number(prefix: str = "PO") -> str:
     """Generate unique order number"""
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     return f"{prefix}-{timestamp}"
 
+
 def format_currency(amount: float, currency: str = "$") -> str:
     """Format amount as currency string"""
+    if amount is None:
+        return f"{currency}0.00"
     return f"{currency}{amount:,.2f}"
+
 
 def format_date(date_str: str) -> str:
     """Format date string for display"""
@@ -21,8 +26,9 @@ def format_date(date_str: str) -> str:
     try:
         dt = datetime.fromisoformat(date_str)
         return dt.strftime("%b %d, %Y")
-    except:
+    except Exception:
         return date_str
+
 
 def get_time_ago(date_str: str) -> str:
     """Get human-readable time ago"""
@@ -42,8 +48,9 @@ def get_time_ago(date_str: str) -> str:
             return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
         else:
             return "Just now"
-    except:
+    except Exception:
         return date_str
+
 
 def get_stock_status(current_stock: int, min_stock: int, max_stock: int) -> str:
     """Returns the stock status based on current, min, and max thresholds."""
@@ -56,45 +63,21 @@ def get_stock_status(current_stock: int, min_stock: int, max_stock: int) -> str:
     else:
         return "In Stock"
 
-def get_status_badge(status: str) -> str:
-    """Get HTML badge for order status"""
-    badges = {
-        'pending': '<span class="badge badge-warning">Pending</span>',
-        'confirmed': '<span class="badge badge-info">Confirmed</span>',
-        'processing': '<span class="badge badge-info">Processing</span>',
-        'shipped': '<span class="badge badge-info">Shipped</span>',
-        'delivered': '<span class="badge badge-success">Delivered</span>',
-        'cancelled': '<span class="badge badge-danger">Cancelled</span>',
-        'flagged': '<span class="badge badge-danger">Flagged</span>',
-        'refunded': '<span class="badge badge-secondary">Refunded</span>',
-    }
-    return badges.get(status.lower(), f'<span class="badge">{status}</span>')
 
 def get_status_color(status: str) -> str:
     """Get color code for status indicator"""
     status_colors = {
-        'on_track': '#10b981',    # Green
-        'at_risk': '#f59e0b',     # Amber
-        'delayed': '#ef4444',     # Red
-        'pending': '#667eea',     # Blue
-        'processing': '#3b82f6',  # Light blue
-        'delivered': '#10b981',   # Green
-        'cancelled': '#6b7280',   # Gray
+        "on_track": "#10b981",
+        "at_risk": "#f59e0b",
+        "delayed": "#ef4444",
+        "pending": "#667eea",
+        "processing": "#3b82f6",
+        "shipped": "#fbbf24",
+        "delivered": "#10b981",
+        "cancelled": "#ef4444",
+        "confirmed": "#3b82f6",
+        "active": "#10b981",
+        "expired": "#ef4444",
+        "flagged": "#f43f5e",
     }
-    return status_colors.get(status.lower(), '#667eea')  # Default to blue
-
-# CORRECTED FUNCTION NAME - matches the import in dashboard/view.py
-def generate_mock_chart_data(days: int = 30, base: float = 100, variance: float = 20):
-    """Generate mock time series data for charts"""
-    dates = [datetime.now() - timedelta(days=x) for x in range(days, 0, -1)]
-    values = [base + (x * 0.5) + random.uniform(-variance, variance) for x in range(days)]
-    return dates, values
-
-# Keep the old name as alias for backward compatibility
-generate_mock_time_series = generate_mock_chart_data
-
-def validate_email(email: str) -> bool:
-    """Basic email validation"""
-    import re
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
+    return status_colors.get(status.lower(), "#94a3b8")
