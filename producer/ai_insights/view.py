@@ -447,8 +447,8 @@ def render(email: str):
     render_model_status()
 
     # Fetch data
-    products = __import__('producer.db_helper.db_helper', fromlist=['get_products']).get_products(producer_id)
-    orders = __import__('producer.db_helper.db_helper', fromlist=['get_orders']).get_orders(producer_id)
+    products = get_products(producer_id)
+    orders = get_orders(producer_id)
     fraud_logs = get_fraud_logs(producer_id)
     fraud_stats = get_fraud_stats()
 
