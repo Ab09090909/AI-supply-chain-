@@ -14,6 +14,17 @@ from supabase.exceptions import APIError
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://your-project.supabase.co")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "your-service-role-key")
 
+# Validate environment variables
+def _validate_config():
+    """Validate that required environment variables are properly configured"""
+    if not SUPABASE_URL or "your-project" in SUPABASE_URL:
+        raise ValueError("SUPABASE_URL environment variable not properly configured. Please set a valid Supabase URL.")
+    if not SUPABASE_SERVICE_ROLE_KEY or "your-service-role-key" in SUPABASE_SERVICE_ROLE_KEY:
+        raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable not properly configured. Please set a valid service role key.")
+
+# Call validation on module import
+_validate_config()
+
 # -----------------------------------------------------------------------------
 # ProducerDB Class
 # -----------------------------------------------------------------------------
@@ -119,6 +130,15 @@ class ProducerDB:
             return response.data
         except APIError as e:
             print(f"Error fetching restock alerts: {str(e)}")
+            return []
+
+    def get_inventory(self) -> List[Dict]:
+        """Fetch inventory items"""
+        try:
+            response = self.supabase.table("inventory").select("*").order("sku", asc=True).execute()
+            return response.data
+        except APIError as e:
+            print(f"Error fetching inventory: {str(e)}")
             return []
 
     # -------------------------------------------------------------------------
