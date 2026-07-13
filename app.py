@@ -2,23 +2,8 @@
 AI Supply Chain Platform - Login & Producer Portal
 """
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-from datetime import datetime, timedelta
-import sqlite3
-import json
-from pathlib import Path
-"""
-Main application entry point with authentication routing
-"""
-import streamlit as st
-from producer.views.view import render
 
-# Simple routing based on auth state
-if __name__ == "__main__":
-    render()
-
-# Page config
+# Page config MUST be first before any other Streamlit commands
 st.set_page_config(
     page_title="AI Supply Chain Platform",
     page_icon="🔗",
@@ -34,6 +19,15 @@ footer {visibility: hidden;}
 header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
+# Now safe to import producer modules
+from producer.views.view import render
+import pandas as pd
+import plotly.express as px
+from datetime import datetime, timedelta
+import sqlite3
+import json
+from pathlib import Path
 
 # ============ DATABASE FUNCTIONS ============
 
@@ -553,7 +547,13 @@ def main():
         login_page()
     else:
         if st.session_state.role == "producer":
-            producer_portal()
+            # Try to render the producer portal from producer module
+            try:
+                render()
+            except Exception as e:
+                # Fallback to simple producer portal
+                st.warning(f"Could not load producer module. Showing basic portal. Error: {str(e)}")
+                producer_portal()
         elif st.session_state.role == "merchant":
             merchant_portal()
         elif st.session_state.role == "customer":

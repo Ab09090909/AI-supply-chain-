@@ -68,6 +68,19 @@ def get_status_badge(status: str) -> str:
     }
     return badges.get(status.lower(), f'<span class="badge">{status}</span>')
 
+def get_status_color(status: str) -> str:
+    """Get color code for status indicator"""
+    status_colors = {
+        'on_track': '#10b981',    # Green
+        'at_risk': '#f59e0b',     # Amber
+        'delayed': '#ef4444',     # Red
+        'pending': '#667eea',     # Blue
+        'processing': '#3b82f6',  # Light blue
+        'delivered': '#10b981',   # Green
+        'cancelled': '#6b7280',   # Gray
+    }
+    return status_colors.get(status.lower(), '#667eea')  # Default to blue
+
 # CORRECTED FUNCTION NAME - matches the import in dashboard/view.py
 def generate_mock_chart_data(days: int = 30, base: float = 100, variance: float = 20):
     """Generate mock time series data for charts"""
