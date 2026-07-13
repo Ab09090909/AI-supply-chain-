@@ -8,6 +8,15 @@ from datetime import datetime, timedelta
 import sqlite3
 import json
 from pathlib import Path
+"""
+Main application entry point with authentication routing
+"""
+import streamlit as st
+from producer.views.view import render
+
+# Simple routing based on auth state
+if __name__ == "__main__":
+    render()
 
 # Page config
 st.set_page_config(
