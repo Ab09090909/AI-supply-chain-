@@ -165,7 +165,33 @@ class ProducerDB:
         """Update product stock"""
         if not self._ensure_connection():
             return False
-            
+
+        
+          def get_projects(self) -> List[Dict]:
+    """Fetch all active production projects with timeline data"""
+    # Replace with your actual project DB query
+    return []
+
+def get_team(self) -> List[Dict]:
+    """Fetch team member data with utilization and availability"""
+    # Replace with your actual team DB query
+    return []
+
+def get_budget_data(self) -> Dict:
+    """Fetch budget planned vs actual spend by category"""
+    # Replace with your actual budget DB query
+    return {}
+
+def get_risks(self) -> List[Dict]:
+    """Fetch active project risks and compliance issues"""
+    # Replace with your actual risk DB query
+    return []
+
+def get_approvals(self) -> List[Dict]:
+    """Fetch pending approval requests"""
+    # Replace with your actual approval DB query
+    return []  
+    
         query = "UPDATE products SET stock = ? WHERE sku = ? AND producer_id = ?"
         result = self.db.execute_query(query, (new_stock, sku, self.producer_id))
         return result is not None
