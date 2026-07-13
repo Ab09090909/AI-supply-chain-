@@ -71,9 +71,12 @@ def run():
         render_settings()
     
     if st.session_state.get("show_ai", False):
-        from producer.ai_assistant.chat import assistant
-        with st.expander("🤖 AI Assistant", expanded=True):
-            assistant.render()
+        try:
+            from producer.ai_assistant import chat
+            with st.expander("🤖 AI Assistant", expanded=True):
+                chat.assistant.render()
+        except ImportError as e:
+            st.error(f"Failed to load AI Assistant: {str(e)}")
 
 def render_dashboard():
     st.header("📊 Producer Dashboard")
@@ -106,7 +109,8 @@ def render_inventory():
     try:
         from producer.utils.db import db
         inventory = db.get_inventory()
-    except:
+    except Exception as e:
+        st.error(f"Failed to load inventory: {str(e)}")
         inventory = [
             {"sku": "AGR-001", "name": "Organic Wheat", "stock": 450, "min": 100, "price": 4.20},
             {"sku": "AGR-002", "name": "Fresh Dairy", "stock": 35, "min": 50, "price": 3.50},
